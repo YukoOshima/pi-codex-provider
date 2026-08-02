@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 interface LoaderResult {
-  extensions: unknown[];
+  extensions: Array<{ tools: Map<string, unknown> }>;
   errors: Array<{ path: string; error: string }>;
 }
 
@@ -26,6 +26,7 @@ test("Pi 0.83 jiti loader can import the packaged TypeScript extension", async (
 
   assert.deepEqual(result.errors, []);
   assert.equal(result.extensions.length, 1);
+  assert.equal(result.extensions[0]?.tools.has("web_search"), true);
 });
 
 test("pi-ai bridge dependency survives Pi git install with --omit=dev", async () => {

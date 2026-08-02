@@ -14,6 +14,7 @@ import piCodexProvider, {
   API_ID,
   PROVIDER_ID,
   normalizeBaseUrl,
+  responsesHttpUrl,
   responsesCompactUrl,
   responsesWebSocketUrl,
   streamCodexWithApiKey,
@@ -94,6 +95,7 @@ async function runScenario(
 test("base URL is an HTTPS API root and derives only the two canonical Responses endpoints", () => {
   const baseUrl = "https://api.example.test/v1";
   assert.equal(normalizeBaseUrl("  https://api.example.test/v1/  "), baseUrl);
+  assert.equal(responsesHttpUrl(baseUrl), "https://api.example.test/v1/responses");
   assert.equal(responsesWebSocketUrl(baseUrl), "wss://api.example.test/v1/responses");
   assert.equal(responsesCompactUrl(baseUrl), "https://api.example.test/v1/responses/compact");
   assert.throws(() => normalizeBaseUrl("http://api.example.test/v1"), /must use https/);
@@ -102,12 +104,17 @@ test("base URL is an HTTPS API root and derives only the two canonical Responses
   assert.throws(() => normalizeBaseUrl("https://api.example.test/v1/responses"), /API root/);
 });
 
-test("default factory registers exactly the Codex WebSocket provider", async () => {
+test("default factory registers the Codex WebSocket provider and integrated web_search", async () => {
   let registration: { provider: string; config: unknown } | undefined;
+  let toolName: string | undefined;
   const pi = {
     registerProvider(provider: string, config: unknown) {
       assert.equal(registration, undefined);
       registration = { provider, config };
+    },
+    registerTool(tool: { name: string }) {
+      assert.equal(toolName, undefined);
+      toolName = tool.name;
     },
     on() {},
   } as unknown as ExtensionAPI;
@@ -120,6 +127,7 @@ test("default factory registers exactly the Codex WebSocket provider", async () 
     api: API_ID,
     streamSimple: streamCodexWithApiKey,
   });
+  assert.equal(toolName, "web_search");
 });
 
 test("provider requires an explicit websocket transport before any network request", async () => {

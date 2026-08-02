@@ -1,6 +1,6 @@
 # pi-codex-provider
 
-给 [Pi](https://pi.dev/) 提供一个严格的 `openai-codex-responses` 传输实现：使用普通 HTTPS `baseUrl` 和 opaque API key，通过标准 Responses WebSocket 调用模型，并通过 `/responses/compact` 执行远程压缩。
+给 [Pi](https://pi.dev/) 提供一个严格的 `openai-codex-responses` 传输实现：使用普通 HTTPS `baseUrl` 和 opaque API key，通过标准 Responses WebSocket 调用模型、通过 `/responses/compact` 执行远程压缩，并注册内置 `web_search` 工具。
 
 这个扩展不会创建新的 gateway，也不会内置模型目录。它只覆盖 `codex-cli` provider 的传输层；模型 metadata、`baseUrl` 和密钥仍由 Pi 的 `models.json` 管理。
 
@@ -12,6 +12,8 @@
 - 如果连接在尚未收到任何服务端事件时以 `1006` 异常关闭，扩展会立即新建一条 WSS 并完整重放请求一次；这是唯一的恢复路径。
 - 收到任何服务端事件后都不会重放；第二次 `1006`、握手、协议、超时或其他上游错误都会立即失败。始终不回退 SSE/HTTP Responses。
 - 远程压缩失败会取消本次压缩；不会回退到 Pi 的本地文本摘要。
+- `web_search` 是本 package 注册的唯一搜索工具。它从 Pi `ModelRegistry` 精确解析 `codex-cli/gpt-5.6-luna` 的 `baseUrl`、command-backed key 和 headers，以 HTTPS `/responses` SSE 调用 OpenAI hosted web search；这是显式工具执行，不是推理的 HTTP fallback。
+- 搜索 SSE 全程分块、有界解析；缺少 Luna 模型、认证、SSE Content-Type 或来源时直接失败。
 - `baseUrl` 必须是 HTTPS API 根路径，不能包含 `/responses`、`/responses/compact` 或 `/codex`。
 - 当前不支持 deferred tool search；启用 `compat.supportsToolSearch` 会在网络请求前失败。
 
@@ -61,7 +63,7 @@ pi -e /absolute/path/to/pi-codex-provider/src/index.ts
 }
 ```
 
-密钥建议由绝对路径命令读取，不要明文写入仓库或 shell history。
+密钥建议由绝对路径命令读取，不要明文写入仓库或 shell history。`web_search` 不另设 JSON 配置或单独 credential file，它会复用这里的 `codex-cli/gpt-5.6-luna` 配置。
 
 在 `~/.pi/agent/settings.json` 中显式强制 WebSocket：
 
@@ -100,7 +102,7 @@ credential-command | \
   node --import tsx scripts/live-smoke.ts
 ```
 
-测试包含真实本地 TLS WebSocket server，验证精确路径和 header、Pi 文本事件、HTTP 503 升级拒绝、零事件 `1006` 仅重连一次、收到任何事件后禁止重放，以及所有失败场景都没有 HTTP/SSE fallback。远程压缩测试验证单次 `/responses/compact` 请求、严格响应 schema、checkpoint 防篡改和上下文投影。
+测试包含真实本地 TLS WebSocket server，验证精确路径和 header、Pi 文本事件、HTTP 503 升级拒绝、零事件 `1006` 仅重连一次、收到任何事件后禁止重放，以及所有失败场景都没有 HTTP/SSE inference fallback。`web_search` 测试验证 Luna 路由、ModelRegistry 认证复用、SSE 分块解析、来源去重和请求前 fast-fail。远程压缩测试验证单次 `/responses/compact` 请求、严格响应 schema、checkpoint 防篡改和上下文投影。
 
 ## License
 

@@ -32,6 +32,10 @@ export function responsesWebSocketUrl(baseUrl: string): string {
   return url.toString();
 }
 
+export function responsesHttpUrl(baseUrl: string): string {
+  return `${normalizeBaseUrl(baseUrl)}/responses`;
+}
+
 export function responsesCompactUrl(baseUrl: string): string {
   return `${normalizeBaseUrl(baseUrl)}/responses/compact`;
 }
