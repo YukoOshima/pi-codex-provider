@@ -9,7 +9,8 @@
 - 推理固定走 `wss://<baseUrl>/responses`。
 - 压缩固定走 `https://<baseUrl>/responses/compact`。
 - API key 只作为 `Authorization: Bearer ...` 使用，不解析 JWT，不需要 ChatGPT OAuth 或 account ID。
-- WebSocket 握手、协议、超时或上游错误都会立即失败；不重试，也不回退 SSE/HTTP Responses。
+- 如果连接在尚未收到任何服务端事件时以 `1006` 异常关闭，扩展会立即新建一条 WSS 并完整重放请求一次；这是唯一的恢复路径。
+- 收到任何服务端事件后都不会重放；第二次 `1006`、握手、协议、超时或其他上游错误都会立即失败。始终不回退 SSE/HTTP Responses。
 - 远程压缩失败会取消本次压缩；不会回退到 Pi 的本地文本摘要。
 - `baseUrl` 必须是 HTTPS API 根路径，不能包含 `/responses`、`/responses/compact` 或 `/codex`。
 - 当前不支持 deferred tool search；启用 `compat.supportsToolSearch` 会在网络请求前失败。
@@ -99,7 +100,7 @@ credential-command | \
   node --import tsx scripts/live-smoke.ts
 ```
 
-测试包含真实本地 TLS WebSocket server，验证精确路径和 header、Pi 文本事件、HTTP 503 升级拒绝、提前断连，以及所有失败场景都没有 HTTP/SSE fallback。远程压缩测试验证单次 `/responses/compact` 请求、严格响应 schema、checkpoint 防篡改和上下文投影。
+测试包含真实本地 TLS WebSocket server，验证精确路径和 header、Pi 文本事件、HTTP 503 升级拒绝、零事件 `1006` 仅重连一次、收到任何事件后禁止重放，以及所有失败场景都没有 HTTP/SSE fallback。远程压缩测试验证单次 `/responses/compact` 请求、严格响应 schema、checkpoint 防篡改和上下文投影。
 
 ## License
 

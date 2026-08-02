@@ -281,3 +281,65 @@ test("WSS close before a terminal event fails fast without an HTTP /responses fa
     await server.close();
   }
 });
+
+test("zero-event 1006 opens one fresh WSS and completes without HTTP fallback", async () => {
+  const { server, events } = await runScenario("zero-event-1006-once");
+  try {
+    assert.equal(server.websocketUpgradeCount, 2);
+    assert.equal(server.observedWebSocketRequests.length, 2);
+    assert.deepEqual(
+      server.observedWebSocketRequests[1]?.body,
+      server.observedWebSocketRequests[0]?.body,
+    );
+    assert.equal(server.httpResponsesRequestCount, 0);
+    assert.deepEqual(server.regularHttpRequests, []);
+    assert.deepEqual(events.map((event) => event.type), [
+      "start",
+      "text_start",
+      "text_delta",
+      "text_end",
+      "done",
+    ]);
+    const done = events.at(-1);
+    assert.ok(done && done.type === "done");
+    assert.equal(done.reason, "stop");
+  } finally {
+    await server.close();
+  }
+});
+
+test("a second zero-event 1006 fails after exactly one fresh WSS without HTTP fallback", async () => {
+  const { server, events } = await runScenario("zero-event-1006-twice");
+  try {
+    assert.equal(server.websocketUpgradeCount, 2);
+    assert.equal(server.observedWebSocketRequests.length, 2);
+    assert.deepEqual(
+      server.observedWebSocketRequests[1]?.body,
+      server.observedWebSocketRequests[0]?.body,
+    );
+    assert.equal(server.httpResponsesRequestCount, 0);
+    assert.deepEqual(server.regularHttpRequests, []);
+    assert.deepEqual(events.map((event) => event.type), ["error"]);
+    const error = events[0];
+    assert.ok(error && error.type === "error");
+    assert.match(error.error.errorMessage ?? "", /closed before a terminal event \(1006\)/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("1006 after any server event is never replayed", async () => {
+  const { server, events } = await runScenario("event-then-1006");
+  try {
+    assert.equal(server.websocketUpgradeCount, 1);
+    assert.equal(server.observedWebSocketRequests.length, 1);
+    assert.equal(server.httpResponsesRequestCount, 0);
+    assert.deepEqual(server.regularHttpRequests, []);
+    assert.deepEqual(events.map((event) => event.type), ["start", "error"]);
+    const error = events.at(-1);
+    assert.ok(error && error.type === "error");
+    assert.match(error.error.errorMessage ?? "", /closed before a terminal event \(1006\)/i);
+  } finally {
+    await server.close();
+  }
+});

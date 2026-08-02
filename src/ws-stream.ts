@@ -28,6 +28,19 @@ export interface WebSocketRequestOptions {
 }
 
 const TERMINAL_EVENTS = new Set(["response.completed", "response.incomplete", "response.failed", "error"]);
+const MAX_ZERO_EVENT_RECONNECTS = 1;
+
+class ResponsesWebSocketClosedError extends Error {
+  constructor(
+    readonly closeCode: number,
+    readonly serverEventCount: number,
+    reason: Buffer,
+  ) {
+    const suffix = reason.length > 0 ? `: ${reason.toString("utf8").slice(0, 256)}` : "";
+    super(`Responses WebSocket closed before a terminal event (${closeCode})${suffix}`);
+    this.name = "ResponsesWebSocketClosedError";
+  }
+}
 
 function headersToRecord(headers: IncomingHttpHeaders): Record<string, string> {
   const result: Record<string, string> = {};
@@ -57,7 +70,7 @@ function validateTerminalEvent(event: ResponseServerEvent): void {
   }
 }
 
-export async function* responseWebSocketEvents(
+async function* responseWebSocketAttemptEvents(
   options: WebSocketRequestOptions,
 ): AsyncGenerator<ResponseServerEvent> {
   const connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
@@ -104,6 +117,7 @@ export async function* responseWebSocketEvents(
   let rejectOpen: ((error: Error) => void) | undefined;
   let upgradeResponse: IncomingMessage | undefined;
   let opened = false;
+  let serverEventCount = 0;
 
   const notify = () => {
     const pending = wake;
@@ -118,6 +132,7 @@ export async function* responseWebSocketEvents(
     notify();
   };
   const onEvent = (event: ResponseServerEvent) => {
+    serverEventCount += 1;
     try {
       const type = eventType(event);
       if (terminalSeen) {
@@ -149,8 +164,7 @@ export async function* responseWebSocketEvents(
   };
   const onClose = (code: number, reason: Buffer) => {
     if (!terminalSeen) {
-      const suffix = reason.length > 0 ? `: ${reason.toString("utf8").slice(0, 256)}` : "";
-      fail(new Error(`Responses WebSocket closed before a terminal event (${code})${suffix}`));
+      fail(new ResponsesWebSocketClosedError(code, serverEventCount, reason));
     }
   };
   const onAbort = () => {
@@ -233,5 +247,32 @@ export async function* responseWebSocketEvents(
     socket.off("upgrade", onUpgrade);
     socket.off("unexpected-response", onUnexpectedResponse);
     socket.off("close", onClose);
+  }
+}
+
+function canReconnectZeroEvent1006(
+  error: unknown,
+  reconnects: number,
+  signal: AbortSignal | undefined,
+): error is ResponsesWebSocketClosedError {
+  return reconnects < MAX_ZERO_EVENT_RECONNECTS
+    && !signal?.aborted
+    && error instanceof ResponsesWebSocketClosedError
+    && error.closeCode === 1006
+    && error.serverEventCount === 0;
+}
+
+export async function* responseWebSocketEvents(
+  options: WebSocketRequestOptions,
+): AsyncGenerator<ResponseServerEvent> {
+  let reconnects = 0;
+  while (true) {
+    try {
+      yield* responseWebSocketAttemptEvents(options);
+      return;
+    } catch (error) {
+      if (!canReconnectZeroEvent1006(error, reconnects, options.signal)) throw error;
+      reconnects += 1;
+    }
   }
 }

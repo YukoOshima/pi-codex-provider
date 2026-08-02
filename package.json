@@ -1,6 +1,6 @@
 {
   "name": "pi-codex-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi Codex Responses provider for standard base URLs and API keys",
   "type": "module",
   "files": [

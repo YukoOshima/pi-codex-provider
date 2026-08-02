@@ -4,7 +4,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 
-export type MockScenario = "success" | "handshake-failure" | "upgrade-rejected" | "early-close";
+export type MockScenario =
+  | "success"
+  | "handshake-failure"
+  | "upgrade-rejected"
+  | "early-close"
+  | "zero-event-1006-once"
+  | "zero-event-1006-twice"
+  | "event-then-1006";
 
 export interface ObservedWebSocketRequest {
   path: string;
@@ -179,6 +186,18 @@ export class MockCodexServer {
         });
         if (this.scenario === "early-close") {
           webSocket.close(1011, "closed before terminal event");
+          return;
+        }
+        if (
+          this.scenario === "zero-event-1006-twice"
+          || (this.scenario === "zero-event-1006-once" && this.observedWebSocketRequests.length === 1)
+        ) {
+          webSocket.terminate();
+          return;
+        }
+        if (this.scenario === "event-then-1006") {
+          webSocket.send(JSON.stringify(successEvents[0]));
+          webSocket.terminate();
           return;
         }
         for (const event of successEvents) {
