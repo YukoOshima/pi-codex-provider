@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
@@ -25,4 +26,20 @@ test("Pi 0.83 jiti loader can import the packaged TypeScript extension", async (
 
   assert.deepEqual(result.errors, []);
   assert.equal(result.extensions.length, 1);
+});
+
+test("pi-ai bridge dependency survives Pi git install with --omit=dev", async () => {
+  const [manifest, lockfile] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../package-lock.json", import.meta.url), "utf8").then(JSON.parse),
+  ]) as [
+    { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
+    { packages?: Record<string, { version?: string; dev?: boolean }> },
+  ];
+
+  assert.equal(manifest.dependencies?.["@earendil-works/pi-ai"], "0.83.0");
+  assert.equal(manifest.devDependencies?.["@earendil-works/pi-ai"], undefined);
+  const piAiLockEntry = lockfile.packages?.["node_modules/@earendil-works/pi-ai"];
+  assert.equal(piAiLockEntry?.version, "0.83.0");
+  assert.equal(piAiLockEntry?.dev, undefined);
 });
