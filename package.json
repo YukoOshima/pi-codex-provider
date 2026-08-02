@@ -1,0 +1,75 @@
+{
+  "name": "pi-codex-provider",
+  "version": "0.1.0",
+  "description": "Pi Codex Responses provider for standard base URLs and API keys",
+  "type": "module",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:all": "npm run check && npm test",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.83.0",
+    "openai": "6.26.0",
+    "ws": "8.21.1"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.83.0"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "0.83.0",
+    "@earendil-works/pi-ai": "0.83.0",
+    "@earendil-works/pi-coding-agent": "0.83.0",
+    "@earendil-works/pi-tui": "0.83.0",
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "@earendil-works/pi-agent-core": "0.83.0",
+    "@earendil-works/pi-ai": "0.83.0",
+    "@earendil-works/pi-coding-agent": "0.83.0",
+    "@earendil-works/pi-tui": "0.83.0",
+    "brace-expansion": "5.0.9",
+    "minimatch": "10.2.6",
+    "ws": "8.21.1",
+    "@hono/node-server": "2.0.12",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "fast-uri": "3.1.5",
+    "protobufjs": "7.6.5"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/YukoOshima/pi-codex-provider.git"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "codex",
+    "openai",
+    "responses-api",
+    "websocket"
+  ]
+}
