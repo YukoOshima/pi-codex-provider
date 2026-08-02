@@ -19,7 +19,7 @@
 ## 安装
 
 ```bash
-pi install git:git@github.com:YukoOshima/pi-codex-provider.git
+pi install https://github.com/YukoOshima/pi-codex-provider.git
 ```
 
 开发时也可以直接加载本地入口：
